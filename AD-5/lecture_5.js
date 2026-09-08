@@ -8,7 +8,9 @@ const songDir = fs.existsSync(path.join(__dirname, 'songs'))
 
 let allSongs = null;
 let cursor = 0;
+let currentSongIndex = 0;
 let isPaused = true;
+let isRepeat = false;
 let vlcPlayProcess = undefined;
 let trackingInterval = null;
 let isLoadingSong = false;
@@ -123,7 +125,7 @@ function listSongs(songDirPath) {
         output += `Select a song and press [Enter] to play.\n\n`;
     }
 
-    output += `\x1B[90mControls: [↑/↓] Navigate | [Enter] Play | [Space/p] Pause | [n] Next | [b] Prev | [q] Quit\x1B[0m\n`;
+    output += `\x1B[90mControls: [↑/↓] Navigate | [Enter] Play | [Space/p] Pause | [n] Next | [b] Prev | [r] Repeat [${isRepeat ? 'ON' : 'OFF'}] | [q] Quit\x1B[0m\n`;
 
     process.stdout.write(output);
 }
@@ -131,6 +133,7 @@ function listSongs(songDirPath) {
 async function playSong(cursorIndex) {
     if (isLoadingSong) return;
     isLoadingSong = true;
+    currentSongIndex = cursorIndex;
 
     if (trackingInterval) {
         clearInterval(trackingInterval);
@@ -174,7 +177,11 @@ async function playSong(cursorIndex) {
                 clearInterval(trackingInterval);
                 trackingInterval = null;
             }
-            listSongs(songDir);
+            if (isRepeat) {
+                playSong(currentSongIndex);
+            } else {
+                listSongs(songDir);
+            }
         }
     });
 }
@@ -248,6 +255,13 @@ process.stdin.on('data', (data) => {
         cursor--;
         listSongs(songDir);
         playSong(cursor);
+        return;
+    }
+
+    // toggle repeat: 'r' (114) or 'R' (82)
+    if (data[0] === 114 || data[0] === 82) {
+        isRepeat = !isRepeat;
+        listSongs(songDir);
         return;
     }
 
