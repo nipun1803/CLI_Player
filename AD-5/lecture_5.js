@@ -86,10 +86,26 @@ function startElapsedTracking() {
 }
 
 function renderBar(percentagePlayed) {
-    const PROGRESS_BAR_WIDTH = 50;
+    const PROGRESS_BAR_WIDTH = 40;
     const playedCharC = Math.max(0, Math.min(PROGRESS_BAR_WIDTH, Math.round(PROGRESS_BAR_WIDTH * (percentagePlayed / 100))));
-    const progressBar = "[" + "X".repeat(playedCharC) + ".".repeat(PROGRESS_BAR_WIDTH - playedCharC) + "]";
-    return progressBar;
+    const emptyCharC = PROGRESS_BAR_WIDTH - playedCharC;
+    return "[" + "\x1B[32m" + "█".repeat(playedCharC) + "\x1B[90m" + "░".repeat(emptyCharC) + "\x1B[0m" + "]";
+}
+
+function seek(seconds) {
+    if (!vlcPlayProcess || totalDuration === undefined) return;
+    const sign = seconds >= 0 ? `+${seconds}` : `${seconds}`;
+    vlcPlayProcess.stdin.write(`seek ${sign}\n`);
+    startTime -= seconds * 1000;
+    const now = (isPaused && pausedAt) ? pausedAt : Date.now();
+    const current = (now - startTime - totalPausedTime) / 1000;
+    if (current < 0) {
+        startTime = now - totalPausedTime;
+    } else if (current > totalDuration) {
+        startTime = now - totalPausedTime - (totalDuration * 1000);
+    }
+    updateTimeElapsed();
+    listSongs(songDir);
 }
 
 function listSongs(songDirPath) {
@@ -118,14 +134,16 @@ function listSongs(songDirPath) {
 
     if (totalDuration !== undefined && totalDuration > 0) {
         const percentagePlayed = Math.min(100, (timeElapsed / totalDuration) * 100);
-        const statusLabel = isPaused ? "\x1B[33m[PAUSED]\x1B[0m" : "\x1B[32m[PLAYING]\x1B[0m";
-        output += `${statusLabel} ${formatTime(timeElapsed)} / ${formatTime(totalDuration)} (${percentagePlayed.toFixed(1)}%)\n`;
+        const statusLabel = isPaused ? "\x1B[33m⏸ [PAUSED]\x1B[0m" : "\x1B[32m▶ [PLAYING]\x1B[0m";
+        const repeatBadge = isRepeat ? " \x1B[36m[🔁 REPEAT]\x1B[0m" : "";
+        output += `${statusLabel}${repeatBadge}  ${formatTime(timeElapsed)} / ${formatTime(totalDuration)} \x1B[90m(${percentagePlayed.toFixed(1)}%)\x1B[0m\n`;
         output += `${renderBar(percentagePlayed)}\n\n`;
     } else {
         output += `Select a song and press [Enter] to play.\n\n`;
     }
 
-    output += `\x1B[90mControls: [↑/↓] Navigate | [Enter] Play | [Space/p] Pause | [n] Next | [b] Prev | [r] Repeat [${isRepeat ? 'ON' : 'OFF'}] | [q] Quit\x1B[0m\n`;
+    const repTag = isRepeat ? "\x1B[32mON\x1B[0m" : "\x1B[90mOFF\x1B[0m";
+    output += `\x1B[90mControls:\x1B[0m \x1B[37m[↑/↓]\x1B[0m Nav │ \x1B[37m[Enter]\x1B[0m Play │ \x1B[37m[Space/p]\x1B[0m Pause │ \x1B[37m[←/→]\x1B[0m ±5s │ \x1B[37m[n/b]\x1B[0m Skip │ \x1B[37m[r]\x1B[0m Repeat (${repTag}) │ \x1B[37m[q]\x1B[0m Quit\n`;
 
     process.stdout.write(output);
 }
@@ -158,7 +176,7 @@ async function playSong(cursorIndex) {
     isPaused = false;
     startElapsedTracking();
 
-    const cp = spawn('vlc', ["-I", "rc", "--no-video", songFinalPath], {
+    const cp = spawn('vlc', ["-I", "rc", "--no-video", "--play-and-exit", songFinalPath], {
         stdio: ['pipe', 'pipe', 'pipe']
     });
 
@@ -179,6 +197,9 @@ async function playSong(cursorIndex) {
             }
             if (isRepeat) {
                 playSong(currentSongIndex);
+            } else if (allSongs && currentSongIndex < allSongs.length - 1) {
+                cursor = currentSongIndex + 1;
+                playSong(cursor);
             } else {
                 listSongs(songDir);
             }
@@ -231,9 +252,13 @@ process.stdin.on('data', (data) => {
                 // down arrow key
                 if (cursor < allSongs.length - 1) cursor++;
             } else if (data[2] === 0x43) {
-                // right arrow key
+                // right arrow key -> seek +5s
+                seek(5);
+                return;
             } else if (data[2] === 0x44) {
-                // left arrow key
+                // left arrow key -> seek -5s
+                seek(-5);
+                return;
             }
         }
 

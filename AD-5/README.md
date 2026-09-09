@@ -31,8 +31,10 @@ Implement an interactive CLI music player that plays songs from a directory and 
 - Enter key binding to play the selected song.
 - Spacebar/P bindings to pause and resume playback natively.
 - Next (`n`) and Previous (`b`) bindings to switch and play adjacent tracks.
-- Repeat toggle (`r`) to automatically loop the currently playing track upon completion.
-- Progress bar and elapsed time visualization based on accurate track duration.
+- Automatic playlist progression: plays next track automatically on song completion (when repeat is OFF).
+- Seek backwards and forwards (`←`/`→`) by 5 seconds in real-time.
+- Repeat toggle (`r`) to loop the current track upon completion.
+- Modern visual progress bar and elapsed time visualization based on accurate track duration.
 - Process cleanup on song exit and application quit.
 
 ### Concepts Used
@@ -94,11 +96,13 @@ flowchart TD
     D -->|Yes| G
     D -->|No| D2[Initiate Playback]
     B -->|p/Space| E[Toggle isPaused state]
+    B -->|Left/Right| S[Seek ±5s via VLC stdin & adjust state]
     B -->|n/b| NB[Navigate & Play Next/Prev]
     B -->|r| R[Toggle isRepeat state]
     B -->|q/Ctrl+C| F[Cleanup & Exit]
 
     R --> G[List Songs / Redraw UI]
+    S --> G
     NB --> D2
     C --> G
     
