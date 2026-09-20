@@ -1,4 +1,6 @@
-# CLI Music Player Refinement
+# CLI Music Player — Main Application (AD-5)
+
+> **Flagship CLI App**: [`lecture_5.js`](lecture_5.js) is the complete, interactive CLI Music Player featuring headless VLC playback, real-time seeking, animated spectrum visualizer, and spinning vinyl disc. For development discussions, see [`prompts.md`](prompts.md).
 
 ## Concepts — Terminal Interfaces & Process Management
 
