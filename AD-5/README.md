@@ -35,6 +35,8 @@ Implement an interactive CLI music player that plays songs from a directory and 
 - Seek backwards and forwards (`←`/`→`) by 5 seconds in real-time.
 - Repeat toggle (`r`) to loop the current track upon completion.
 - Modern visual progress bar and elapsed time visualization based on accurate track duration.
+- Real-time dynamic **Audio Spectrum Visualizer** with multi-colored equalizer bars that bounce during playback and freeze/flatten when paused.
+- Animated **Spinning Disc indicator** (`[◐]`, `[◓]`, `[◑]`, `[◒]`) that rotates smoothly during playback and halts when paused.
 - Process cleanup on song exit and application quit.
 
 ### Concepts Used
@@ -42,6 +44,7 @@ Implement an interactive CLI music player that plays songs from a directory and 
 - `spawn('vlc')` with the Remote Control (`rc`) interface for interactive playback.
 - `spawn('afinfo')` for retrieving metadata.
 - `setInterval` for tracking elapsed playback time and syncing the UI.
+- ANSI color sequences & Unicode block characters (` `, `▂`, `▃`, `▄`, `▅`, `▆`, `▇`, `█`) for rich terminal visualization and frame-based animations synced to the existing playback interval without adding extra loops.
 
 ### Project Connection
 This phase resulted in the final `lecture_5.js` code which acts as our fully featured CLI music player, integrating all the individual system and terminal manipulation concepts.
@@ -115,9 +118,9 @@ flowchart TD
     L --> M[Freeze/Unfreeze timeElapsed logic]
     M --> G
 
-    K -. Every 100ms .-> N[Update timeElapsed]
+    K -. Every 100ms .-> N[Update timeElapsed & animTick]
     N --> G
     
     G --> O[Clear terminal screen]
-    O --> P[Draw song list & progress bar]
+    O --> P[Draw song list, progress bar, spinning disc & spectrum visualizer]
 ```

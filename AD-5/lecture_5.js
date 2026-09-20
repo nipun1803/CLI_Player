@@ -21,6 +21,10 @@ let startTime = null;
 let pausedAt = null;
 let totalPausedTime = 0;
 
+let animTick = 0;
+const DISC_FRAMES = ['◐', '◓', '◑', '◒'];
+const SPECTRUM_CHARS = [' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+
 function formatTime(seconds) {
     if (seconds === undefined || isNaN(seconds)) return "00:00";
     const s = Math.max(0, Math.floor(seconds));
@@ -80,6 +84,7 @@ function startElapsedTracking() {
     trackingInterval = setInterval(() => {
         if (vlcPlayProcess !== undefined && !isPaused) {
             updateTimeElapsed();
+            animTick++;
         }
         listSongs(songDir);
     }, 100);
@@ -90,6 +95,28 @@ function renderBar(percentagePlayed) {
     const playedCharC = Math.max(0, Math.min(PROGRESS_BAR_WIDTH, Math.round(PROGRESS_BAR_WIDTH * (percentagePlayed / 100))));
     const emptyCharC = PROGRESS_BAR_WIDTH - playedCharC;
     return "[" + "\x1B[32m" + "█".repeat(playedCharC) + "\x1B[90m" + "░".repeat(emptyCharC) + "\x1B[0m" + "]";
+}
+
+function renderVisualizer() {
+    const NUM_BARS = 20;
+    if (isPaused || vlcPlayProcess === undefined) {
+        return "  \x1B[90m♫  " + "▂ ".repeat(NUM_BARS) + "[PAUSED]\x1B[0m";
+    }
+    let viz = "  \x1B[35m♫ \x1B[0m";
+    for (let i = 0; i < NUM_BARS; i++) {
+        const val = Math.sin((animTick * 0.35) + (i * 0.45)) * Math.cos((animTick * 0.15) - (i * 0.25));
+        const normalized = Math.max(0, Math.min(1, (val + 1) / 2));
+        const charIdx = Math.floor(normalized * (SPECTRUM_CHARS.length - 1));
+        const char = SPECTRUM_CHARS[charIdx];
+        if (charIdx > 5) {
+            viz += `\x1B[35m${char} \x1B[0m`;
+        } else if (charIdx > 2) {
+            viz += `\x1B[36m${char} \x1B[0m`;
+        } else {
+            viz += `\x1B[32m${char} \x1B[0m`;
+        }
+    }
+    return viz;
 }
 
 function seek(seconds) {
@@ -134,10 +161,13 @@ function listSongs(songDirPath) {
 
     if (totalDuration !== undefined && totalDuration > 0) {
         const percentagePlayed = Math.min(100, (timeElapsed / totalDuration) * 100);
+        const discFrame = isPaused ? "◒" : DISC_FRAMES[animTick % DISC_FRAMES.length];
         const statusLabel = isPaused ? "\x1B[33m⏸ [PAUSED]\x1B[0m" : "\x1B[32m▶ [PLAYING]\x1B[0m";
+        const discBadge = isPaused ? `\x1B[90m[${discFrame}]\x1B[0m` : `\x1B[36m[${discFrame}]\x1B[0m`;
         const repeatBadge = isRepeat ? " \x1B[36m[🔁 REPEAT]\x1B[0m" : "";
-        output += `${statusLabel}${repeatBadge}  ${formatTime(timeElapsed)} / ${formatTime(totalDuration)} \x1B[90m(${percentagePlayed.toFixed(1)}%)\x1B[0m\n`;
-        output += `${renderBar(percentagePlayed)}\n\n`;
+        output += `${statusLabel} ${discBadge}${repeatBadge}  ${formatTime(timeElapsed)} / ${formatTime(totalDuration)} \x1B[90m(${percentagePlayed.toFixed(1)}%)\x1B[0m\n`;
+        output += `${renderBar(percentagePlayed)}\n`;
+        output += `${renderVisualizer()}\n\n`;
     } else {
         output += `Select a song and press [Enter] to play.\n\n`;
     }
@@ -320,6 +350,7 @@ process.stdin.on('data', (data) => {
                     trackingInterval = setInterval(() => {
                         if (vlcPlayProcess !== undefined && !isPaused) {
                             updateTimeElapsed();
+                            animTick++;
                         }
                         listSongs(songDir);
                     }, 100);
